@@ -1,127 +1,84 @@
-> `AbstractBeanFactory#doGetBean(name···)`
+3.4一面
+大概一个小时
+手撕：简单题：求一个数的两个加数，需要满足两个加数的各个位的数字和最大
+问项目
+1. poll/epoll/select
+2. TIME_WAIT状态了解吗
+3. 出现大量 TIME_WAIT 状态的原因有哪些
+4. TIME_WAIT 过多有什么危害？
+5. 如何减少 TIME_WAIT？
+6. 常用 linux命令
+7. 常见数据结构优缺点、选型
+8. 缓存雪崩及解决方案
+9. 内存泄漏、原因、解决办法
+10. 怎么解决并发安全问题
+11. 怎么减轻锁开销
+12. 线程池
 
-1.  `getSingleton(name,true)` 获取不到再使用，
-2. 类似双亲委派，找 parent，parent找不到再自行寻找，
-3. 自行寻找：(dependsOn) 然后 `getSingleton(name, singletonFactory)`
-4. `getSingleton(name, singletonFactory)`: 先一级缓存找，找不到就真正开启<mark>创建工作</mark>，首先将其加到 CreationSet 表明其正在创建。 `singletonFactory`实际上就是一个`ObjectFactory`，这个函数式接口通过`createBean(name···)`获取对象。创建完成将其从 CreationSet 中移除，保证其只存在于一级缓存单例池中。最后返回创建好的 bean
+3.5二面
+半小时，无手撕
+简单问了问项目，实验室，一些c++八股，一度以为是kpi
 
-> `AbstractAutowireCapableBeanFactory#doCreateBean(name,mbd,args)` 
+3.17三面
+40来分钟，无手撕
+设计一个负载均衡算法：1. 负载均衡; 2. 同一个用户映射到同一个节点；3. 有节点的增删；
+问项目，实验室，聊挑战、优势等
 
-1. `createBeanInstance()`：获取 factoryBean new 出裸对象，加入 CreationSet，未注入依赖。（实际上返回的是 BeanWrapper，有更完善的功能，本质还是对象实例）
+3.26hr面
+40来分钟
+1. 介绍项目这么进行团队合作
+2. 有没有付出努力，没有成效的事
+3. 向他推荐一个APP，介绍家乡（hr说希望听到一些产品思维上的东西，希望提高）
+4. 实习中希望收获什么
+5. 什么时候能实习
+6. 未来规划
+等等。
 
-   - 当且仅当<u>单例+允许循环依赖+这个bean在creationSet中</u>，才加三级缓存`addSingletonFactory`，一定要保证一级和二级缓存里面没有，然后把ObjectFactory加到三级缓存里面。
+4.1 录用评估
 
-2. `populateBean()`：进行字段、方法注入。做一些` postProcessAfterInstantiation` 实例化之后初始化之前的工作。然后就是 `autowireByName/Name`，本质上就是通过 `getBean(name···)`获取实例。
+4.3 放假前offer了
 
-   - 依赖注入就是这里遇到的问题，如果代理对象出现循环依赖，那么其生成应该是初始化之后，所以此阶段断然不能提供出代理对象，因此加入三级缓存提前暴露出一个引用。
+作者：预习时长两年半
+链接：https://www.nowcoder.com/feed/main/detail/9b452e79604a46f184e376a1f8f03f93?sourceSSR=search
+来源：牛客网
 
-3. `initializeBean()`：
+1. 介绍一下实习做了什么。
+2. 对mysql的存储引擎了解吗？
+    1. 只知道行锁，事务的区别。
+3. mysql事务了解吗？事务的级别有哪几种。
+4. 审批流的id是怎么生成的。
+5. 如果审批流放到外部，使用自增id的风险是什么？
+6. 雪花算法了解吗？
+7. 慢查询如何识别和优化。
+8. redis的分布式锁，是如何设计和实现。
+    1. 我说用的redisson。
+    2. 最后答到如何使用，以及如何解锁才放。
+9. 分布式监控平台的CAP了解吗？
+10. hashMap的原理。为什么最开始不用红黑树。
+11. tcp三次握手四次挥手。
+12. tcp为什么不两次握手。
+13. tcp和udp的区别。
+14. 场景题：微信聊天用的什么协议。
+15. 讲解一下常见的网络攻击，挑两个说解决方案。
+手撕：滑动窗口 合并链表上升序列。
 
-   - 调用 `BeanPostProcessor#postProcessBeforeInitialization`。
-
-   - 调用初始化方法。(PostConstruct-initMethod-afterPropertiesSet)
-
-   - 调用 `BeanPostProcessor#postProcessAfterInitialization`（**这里才生成代理对象**）。
-
-4. 完成上述工作之后，如果当前是存在于三级缓存，则调用下方的 `getSingleton(name,true)` ： true 代表允许早期引用（主要解决循环依赖）
-
-   - 按照顺序先后从一、二级缓存中获取，
-
-   - 如果获取不到就通过三级缓存拿到对象工厂，通过`objectFactory.getObject()` 获取实例，
-     - lambda：`getEarlyBeanReference()`返回创建的裸/代理对象 `singletonObject`
-
-   - 得到对象之后移除对应的三级缓存，加到二级缓存里面（裸/代理对象）。
-
-
-
-
-
-代理：AbstractAutoProxyCreator
-
-```java
-// 这个方法是用于三级缓存生成对象的时候将bean放到earlyBeanReferences里面，
-public Object getEarlyBeanReference(Object bean, String beanName) {
-    Object cacheKey = this.getCacheKey(bean.getClass(), beanName);
-    this.earlyBeanReferences.put(cacheKey, bean);
-    return this.wrapIfNecessary(bean, beanName, cacheKey);
-}
-public Object postProcessAfterInitialization(@Nullable Object bean, String beanName) {
-    if (bean != null) {
-        Object cacheKey = this.getCacheKey(bean.getClass(), beanName);
-        if (this.earlyBeanReferences.remove(cacheKey) != bean) {
-            // wrap 包装成代理的核心方法
-            return this.wrapIfNecessary(bean, beanName, cacheKey);
-        }
-    }
-
-    return bean;
-}
-```
-
-
-
-注入Bean：
-
-1. **优先查询一级缓存（`singletonObjects`）**
-   - 一级缓存也叫单例池，存储的是**完全初始化**的单例 Bean（例如已注入所有依赖且完成代理增强的对象）。
-   - **作用**：直接获取可用 Bean，避免重复创建。
-   - 优先级最高：如果找到直接返回，不触发后续缓存查询。
-2. **未找到则查询二级缓存（`earlySingletonObjects`）**
-   - 二级缓存存储的是**已实例化但未完成初始化**的 Bean（半成品）。
-   - **作用**：在循环依赖中临时暴露早期引用（例如 A 依赖 B 时，B 可能正在创建中，需引用 A 的半成品）。
-   - 注意：若二级缓存中存在目标 Bean，则直接返回，但此时 Bean 可能尚未完成属性注入或代理。
-3. **最后查询三级缓存（`singletonFactories`）**
-   - 三级缓存是 beanName 到 对象工厂（`ObjectFactory`）的映射，对象工厂是个函数式接口，这个接口用于动态生成 Bean 的早期引用或代理对象。
-   - 触发条件：仅当一、二级缓存均未找到时，调用工厂生成 Bean 实例，之后将其提升至二级缓存。
-   - **关键作用**：支持 AOP 代理的延迟生成（例如解决代理对象的循环依赖）。
+作者：xunxxmo
+链接：https://www.nowcoder.com/feed/main/detail/f0276b80701d4d67b8ee2a589580247c?sourceSSR=search
+来源：牛客网
 
 
+多线程中经常要用锁，请你介绍一下你了解哪些锁？
+自旋锁和互斥锁的区别是什么？
+写代码怎么去避免死锁？
+场景题：比如说现在要监控一个主线程，主线程可能会死锁，也可能是没有死锁但是卡死了，我们有没有什么办法去感知这个事情呢？
+追问：现在程序在用户那里，你要把这个事情上报下来，你会怎么做？
+追问：我怎么知道这个程序有没有卡死或者死锁了？
+追问：但是我们又怎么知道他在是哪个函数，哪一行代码里面的？
+后面又根据回答疯狂追问
+谈一谈 TCP 的拥塞控制
+最后手撕 K 个一组翻转链表（一开始停止条件写错了，写了个死循环之间把OJ卡机了，提交不了新代码，后面改A出来了）
+反问
 
-
-
-如果只有二级缓存，就可以解决问题：
-
-- `getBean(a)`，实例化对象 A 以后放入二级缓存（裸对象），然后 A 开始属性注入
-- 遇到一个属性 B，先从一级缓存里面拿发现没有，瞄一眼二级缓存里面也没有，于是开始 `getBean(b)`：
-- 实例化对象B以后将其放入二级缓存（裸对象），B 开始属性注入，发现 A 不在一级缓存，但是从二级缓存里面拿到了 A 的裸对象注入 B，此时 B 算初始化完成，把 B 从二级缓存里面删掉，放到一级缓存里面，至此 B 创建完成。
-- 最后 A 用于注入的方法就能返回一个从缓存里面拿到的 B 对象，A 的注入也就完成了。
-
-
-
-三级缓存的 `ObjectFactory` 主要是用于提供一个钩子，这个接口的方法返回的就是bean对象，不同之处在于可以在返回裸对象前，给其套上一层代理再返回。如果只有二级缓存，就没有机会返回代理对象。
-
-
-
-
-
-`DefaultSingletonBeanRegistry#getSingleton`：DCL双重校验锁。极端情况：返回null，一二三级缓存均无，返回对象工厂创建的对象（使用三级缓存）。
-
-```java
-@Nullable
-protected Object getSingleton(String beanName, boolean allowEarlyReference) {
-    // Quick check for existing instance without full singleton lock
-    Object singletonObject = this.singletonObjects.get(beanName);
-    if (singletonObject == null && isSingletonCurrentlyInCreation(beanName)) {
-        singletonObject = this.earlySingletonObjects.get(beanName);
-        if (singletonObject == null && allowEarlyReference) {
-            synchronized (this.singletonObjects) {
-                // Consistent creation of early reference within full singleton lock
-                singletonObject = this.singletonObjects.get(beanName);
-                if (singletonObject == null) {
-                    singletonObject = this.earlySingletonObjects.get(beanName);
-                    if (singletonObject == null) {
-                        ObjectFactory<?> singletonFactory = this.singletonFactories.get(beanName);
-                        if (singletonFactory != null) {
-                            singletonObject = singletonFactory.getObject();
-                            this.earlySingletonObjects.put(beanName, singletonObject);
-                            this.singletonFactories.remove(beanName);
-                        }
-                    }
-                }
-            }
-        }
-    }
-    return singletonObject;
-}
-```
-
+作者：祝余杜若
+链接：https://www.nowcoder.com/discuss/750815766189969408?sourceSSR=dynamic
+来源：牛客网
